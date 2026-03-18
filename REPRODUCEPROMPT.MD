@@ -62,13 +62,22 @@ cad2d23d/
 │   │   └── main.py                  # FastAPI app
 │   ├── nicegui_app.py               # NiceGUI フロントエンド
 │   ├── tests/
-│   │   ├── test_engines.py          # エンジン基盤テスト (24件)
-│   │   ├── test_engines_new.py      # 新規エンジンテスト (47件)
-│   │   ├── test_mold.py             # 金型テスト (65件)
-│   │   └── test_api.py              # APIテスト
+│   │   ├── conftest.py               # テスト共通fixture
+│   │   ├── test_engines.py           # エンジン基盤テスト (24件)
+│   │   ├── test_engines_new.py       # 新規エンジンテスト (47件)
+│   │   ├── test_mold.py              # 金型テスト (65件)
+│   │   ├── test_api_integration.py   # API統合テスト (19件)
+│   │   ├── test_modules.py           # 前処理/修復/重み/類似テスト (23件)
+│   │   ├── test_history.py           # 履歴管理テスト (15件)
+│   │   ├── test_coverage_boost.py    # Config/Export/Settings (35件)
+│   │   ├── test_generate_preprocessing.py # Generate API/Multiview (20件)
+│   │   └── test_preprocessing_extended.py # 形式変換/注釈除去 (26件)
 │   ├── pyproject.toml
 │   └── static/viewer3d.html
-└── frontend/                        # React (Vite) フロントエンド
+├── CONTRIBUTING.md                   # 開発者ガイド
+├── CHANGELOG.md                      # 変更履歴
+├── LICENSE                           # MIT License
+└── frontend/                         # React (Vite) フロントエンド
 ```
 
 ---
@@ -322,18 +331,26 @@ def _setup_engine_registry():
 - `EngineRegistry` の `_discovered` フラグが一度Trueになると再発見しない
 - テスト間で順序依存を避けるため `reset()` + `reload()` が必要
 
-### 8.3 カバレッジ (60%, 分岐含む)
+### 8.3 カバレッジ (61.2%, 分岐含む)
 | モジュール | カバレッジ |
 |-----------|----------|
-| `engines/base.py` | **100%** |
+| `engines/base.py` | **99%** |
 | `models/schemas.py` | **100%** |
 | `core/config.py` | **100%** |
 | `core/exceptions.py` | **100%** |
 | `history/manager.py` | **99%** |
 | `engines/registry.py` | **92%** |
 | `mold/sizing.py` | **91%** |
+| `mold/parting_line.py` | **93%** |
+| `mold/parts_db.py` | **91%** |
 | `multiview_splitter.py` | **88%** |
 | `settings.py` | **93%** |
+| `mold/draft_analysis.py` | **82%** |
+| `mold/core.py` | **81%** |
+| `upload.py` | **75%** |
+| `similarity/image_similarity.py` | **70%** |
+| `postprocessing/mesh_repair.py` | **64%** |
+| `mold/undercut.py` | **55%** |
 - `load_model` / `reconstruct` 内部はGPU+重み依存のため未テスト
 
 ---
@@ -343,21 +360,27 @@ def _setup_engine_registry():
 ```toml
 [project]
 name = "cad3d-generator"
+version = "0.2.0"
+requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.100",
-    "uvicorn[standard]",
-    "nicegui>=1.4",
-    "torch>=2.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.9",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "websockets>=12.0",
+    "aiofiles>=23.0",
+    "pillow>=10.0",
     "trimesh>=4.0",
     "numpy>=1.24",
-    "Pillow>=10.0",
-    "huggingface-hub",
-    "httpx",
-    "pydantic>=2.0",
+    "httpx>=0.27.0",
+    "huggingface-hub>=0.20.0",
+    "tqdm>=4.60",
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-asyncio", "pytest-cov", "pytest-xdist"]
+test = ["pytest>=8.0", "pytest-asyncio>=0.23", "pytest-cov>=5.0", "httpx>=0.27.0", "ruff>=0.4.0"]
+gpu = ["torch>=2.1.0", "torchvision>=0.16.0"]
 ```
 
 ---
@@ -372,7 +395,7 @@ cd cad2d3d/backend
 # 2. 依存インストール
 pip install -e ".[test]"
 
-# 3. テスト実行 (248件)
+# 3. テスト実行 (274件)
 python -m pytest tests/ -v
 
 # カバレッジ付き
@@ -396,3 +419,4 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 4. **NiceGUI Python 3.13**: on_click は必ず lambda でラップ
 5. **テスト順序非依存**: session fixture で `EngineRegistry.reset()` + `importlib.reload()`
 6. **ポート競合**: NiceGUI は `show=True` でブラウザ自動起動 → テスト時は `show=False`
+7. **NiceGUI関数定義順序**: `download_result`/`open_external`/`reload_model`はUI構築前に定義すること (Python 3.13のクロージャスコープ問題)

@@ -1,7 +1,7 @@
 # 🏭 CAD3D Generator
 
-[![Tests](https://img.shields.io/badge/tests-248%20passed-brightgreen)](https://github.com/jckkvs/cad2d3d)
-[![Coverage](https://img.shields.io/badge/coverage-60%25-yellowgreen)](https://github.com/jckkvs/cad2d3d)
+[![Tests](https://img.shields.io/badge/tests-274%20passed-brightgreen)](https://github.com/jckkvs/cad2d3d)
+[![Coverage](https://img.shields.io/badge/coverage-61%25-yellowgreen)](https://github.com/jckkvs/cad2d3d)
 [![Python](https://img.shields.io/badge/python-3.11%20|%203.12%20|%203.13-blue)](https://python.org)
 [![CI](https://github.com/jckkvs/cad2d3d/actions/workflows/ci.yml/badge.svg)](https://github.com/jckkvs/cad2d3d/actions)
 
@@ -106,7 +106,7 @@ pip install -e ".[test]"
 
 # 3. 動作確認（248件のテストが全て合格すればOK）
 python -m pytest tests/ -q
-# → 248 passed ✅
+# → 274 passed ✅
 ```
 
 ### 起動
@@ -352,7 +352,7 @@ cad2d3d/
 │   │   ├── similarity/       # 3D/2D類似度比較
 │   │   └── history/          # 生成履歴管理
 │   ├── nicegui_app.py        # NiceGUI フロントエンド
-│   └── tests/                # 248テスト (8ファイル)
+│   └── tests/                # 274テスト (8ファイル)
 ├── .github/workflows/ci.yml  # GitHub Actions CI
 ├── REPRODUCEPROMPT.MD         # AI再現用 完全仕様書
 └── README.md                  # ← このファイル
@@ -419,7 +419,7 @@ python -m pytest tests/ --cov=app --cov-branch
 ### テスト実行
 
 ```bash
-python -m pytest tests/ -v          # 全248テスト
+python -m pytest tests/ -v          # 全274テスト
 python -m pytest tests/ -q          # サマリだけ
 python -m pytest tests/ --cov=app   # カバレッジ付き (現在60%)
 ```
