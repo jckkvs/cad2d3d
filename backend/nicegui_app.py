@@ -160,6 +160,65 @@ async def main_page():
             "flat round color=grey-6"
         )
 
+    # ── 結果操作ヘルパー関数 (UI構築前に定義) ────────
+
+    def load_model_to_scene(scene_widget, model_path: Path):
+        """3Dシーンにモデルをロード."""
+        try:
+            import trimesh
+            mesh = trimesh.load(str(model_path))
+
+            scene_widget.clear()
+            with scene_widget:
+                if hasattr(mesh, "vertices") and hasattr(mesh, "faces"):
+                    verts = mesh.vertices
+                    center = verts.mean(axis=0)
+                    scale = 2.0 / max(verts.max(axis=0) - verts.min(axis=0))
+
+                    extent = mesh.bounding_box.extents
+                    ui.scene.box(extent[0] * scale, extent[1] * scale, extent[2] * scale).material(
+                        color="#6366f1", opacity=0.8
+                    )
+
+            logger.info("Loaded model to 3D scene: %s", model_path)
+        except Exception:
+            logger.warning("Failed to load model to scene", exc_info=True)
+
+    def download_result():
+        """結果ファイルをダウンロード."""
+        if generation_result_path and generation_result_path.exists():
+            ui.download(str(generation_result_path))
+        else:
+            ui.notify("出力ファイルが見つかりません", type="warning")
+
+    async def open_external():
+        """外部CADソフトで開く."""
+        import os, subprocess, sys as _sys
+        if not generation_result_path or not generation_result_path.exists():
+            ui.notify("出力ファイルが見つかりません", type="warning")
+            return
+        try:
+            if _sys.platform == "win32":
+                os.startfile(str(generation_result_path))
+            elif _sys.platform == "darwin":
+                subprocess.run(["open", str(generation_result_path)], check=True)
+            else:
+                subprocess.run(["xdg-open", str(generation_result_path)], check=True)
+            ui.notify("✓ 外部アプリで開きました", type="positive")
+        except Exception as e:
+            ui.notify(f"✕ 起動失敗: {e}", type="negative")
+
+    async def reload_model():
+        """外部編集後のモデルを再読み込み."""
+        if generation_result_path and generation_result_path.exists():
+            try:
+                load_model_to_scene(scene, generation_result_path)
+                ui.notify("✓ モデルを再読み込みしました", type="positive")
+            except Exception as e:
+                ui.notify(f"✕ 再読み込み失敗: {e}", type="negative")
+        else:
+            ui.notify("出力ファイルが見つかりません", type="warning")
+
     # ── メインレイアウト ──────────────────────────
 
     with ui.row().classes("w-full").style("height: calc(100vh - 64px); gap: 0;"):
@@ -742,65 +801,8 @@ async def main_page():
         finally:
             generate_btn.props(remove="loading")
 
-    def load_model_to_scene(scene_widget, model_path: Path):
-        """3Dシーンにモデルをロード."""
-        try:
-            import trimesh
-            mesh = trimesh.load(str(model_path))
-
-            scene_widget.clear()
-            with scene_widget:
-                if hasattr(mesh, "vertices") and hasattr(mesh, "faces"):
-                    # メッシュのバウンディングボックスを正規化
-                    verts = mesh.vertices
-                    center = verts.mean(axis=0)
-                    scale = 2.0 / max(verts.max(axis=0) - verts.min(axis=0))
-
-                    # 簡略化して3Dシーンに追加
-                    # NiceGUIのsceneでは基本形状を使用
-                    extent = mesh.bounding_box.extents
-                    ui.scene.box(extent[0] * scale, extent[1] * scale, extent[2] * scale).material(
-                        color="#6366f1", opacity=0.8
-                    )
-
-            logger.info("Loaded model to 3D scene: %s", model_path)
-        except Exception:
-            logger.warning("Failed to load model to scene", exc_info=True)
-
-    def download_result():
-        """結果ファイルをダウンロード."""
-        if generation_result_path and generation_result_path.exists():
-            ui.download(str(generation_result_path))
-        else:
-            ui.notify("出力ファイルが見つかりません", type="warning")
-
-    async def open_external():
-        """外部CADソフトで開く."""
-        import os, subprocess, sys as _sys
-        if not generation_result_path or not generation_result_path.exists():
-            ui.notify("出力ファイルが見つかりません", type="warning")
-            return
-        try:
-            if _sys.platform == "win32":
-                os.startfile(str(generation_result_path))
-            elif _sys.platform == "darwin":
-                subprocess.run(["open", str(generation_result_path)], check=True)
-            else:
-                subprocess.run(["xdg-open", str(generation_result_path)], check=True)
-            ui.notify("✓ 外部アプリで開きました", type="positive")
-        except Exception as e:
-            ui.notify(f"✕ 起動失敗: {e}", type="negative")
-
-    async def reload_model():
-        """外部編集後のモデルを再読み込み."""
-        if generation_result_path and generation_result_path.exists():
-            try:
-                load_model_to_scene(scene, generation_result_path)
-                ui.notify("✓ モデルを再読み込みしました", type="positive")
-            except Exception as e:
-                ui.notify(f"✕ 再読み込み失敗: {e}", type="negative")
-        else:
-            ui.notify("出力ファイルが見つかりません", type="warning")
+    # (download_result/open_external/reload_model/load_model_to_scene は
+    #  UIビルド前に定義済み — L163付近を参照)
 
     # ── 金型設計イベントハンドラ ───────────────
 
