@@ -297,12 +297,17 @@ GET  /api/mold/sizing/clamp-force  # 型締力計算
 
 ## 8. テスト仕様
 
-### 8.1 テスト構成 (136件合格)
+### 8.1 テスト構成 (248件合格, カバレッジ60%)
 | ファイル | 件数 | 内容 |
 |---------|------|------|
 | `test_engines.py` | 24 | ReconstructionEngine ABC, EngineRegistry |
 | `test_engines_new.py` | 47 | 新規5エンジン + SECAD-Netユーティリティ + 比較API + unload + 整合性 |
 | `test_mold.py` | 65 | アンダーカット/PL/ドラフト/サイジング/部品DB/API統合 |
+| `test_api_integration.py` | 19 | FastAPI全エンドポイント統合テスト |
+| `test_modules.py` | 23 | 前処理/メッシュ修復/重み管理/類似度 |
+| `test_history.py` | 15 | 履歴管理CRUD/永続化/破損回復 |
+| `test_coverage_boost.py` | 35 | Config/例外/Export/Settings/スキーマ/エンジンエッジケース |
+| `test_generate_preprocessing.py` | 20 | Generate API/Multiview分割/Otsu/ギャップ検出 |
 
 ### 8.2 テスト初期化の注意
 ```python
@@ -317,10 +322,18 @@ def _setup_engine_registry():
 - `EngineRegistry` の `_discovered` フラグが一度Trueになると再発見しない
 - テスト間で順序依存を避けるため `reset()` + `reload()` が必要
 
-### 8.3 カバレッジ
-- SECAD-Net: **63%** (PointNet/SEDecoder/IoU/パース)
-- レジストリ: 88%
-- エンジン全体: **50%**
+### 8.3 カバレッジ (60%, 分岐含む)
+| モジュール | カバレッジ |
+|-----------|----------|
+| `engines/base.py` | **100%** |
+| `models/schemas.py` | **100%** |
+| `core/config.py` | **100%** |
+| `core/exceptions.py` | **100%** |
+| `history/manager.py` | **99%** |
+| `engines/registry.py` | **92%** |
+| `mold/sizing.py` | **91%** |
+| `multiview_splitter.py` | **88%** |
+| `settings.py` | **93%** |
 - `load_model` / `reconstruct` 内部はGPU+重み依存のため未テスト
 
 ---
@@ -359,8 +372,11 @@ cd cad2d3d/backend
 # 2. 依存インストール
 pip install -e ".[test]"
 
-# 3. テスト実行 (136件)
+# 3. テスト実行 (248件)
 python -m pytest tests/ -v
+
+# カバレッジ付き
+python -m pytest tests/ --cov=app --cov-branch
 
 # 4. NiceGUI起動
 python nicegui_app.py
