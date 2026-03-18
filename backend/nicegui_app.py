@@ -457,9 +457,9 @@ async def main_page():
                 # 結果操作ボタン（生成完了後に表示）
                 result_buttons = ui.row().classes("gap-1").style("display: none;")
                 with result_buttons:
-                    ui.button("💾 ダウンロード", on_click=download_result).props("flat dense color=grey-4 size=sm")
-                    ui.button("🔗 外部CADで開く", on_click=open_external).props("flat dense color=grey-4 size=sm")
-                    ui.button("🔄 再読み込み", on_click=reload_model).props("flat dense color=grey-4 size=sm")
+                    ui.button("💾 ダウンロード", on_click=lambda: download_result()).props("flat dense color=grey-4 size=sm")
+                    ui.button("🔗 外部CADで開く", on_click=lambda: open_external()).props("flat dense color=grey-4 size=sm")
+                    ui.button("🔄 再読み込み", on_click=lambda: reload_model()).props("flat dense color=grey-4 size=sm")
 
             # 3Dシーン
             scene_container = ui.column().classes("w-full col items-center justify-center")
