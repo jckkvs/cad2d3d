@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>3D Mold Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0e1a; overflow: hidden; font-family: 'Inter', sans-serif; }
+  #viewer { width: 100%; height: 100vh; }
+  #info-panel {
+    position: fixed; top: 12px; left: 12px;
+    background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(12px);
+    border: 1px solid rgba(148,163,184,0.15); border-radius: 12px;
+    padding: 16px; color: #f1f5f9; min-width: 220px;
+    font-size: 13px; z-index: 100;
+  }
+  #info-panel h3 { font-size: 14px; margin-bottom: 8px; color: #a5b4fc; }
+  #info-panel .stat { color: #94a3b8; margin: 3px 0; }
+  #controls {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 100;
+  }
+  .ctrl-btn {
+    background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(148,163,184,0.2);
+    color: #a5b4fc; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+    font-size: 12px; transition: all 0.2s;
+  }
+  .ctrl-btn:hover { background: rgba(99, 102, 241, 0.3); border-color: #6366f1; }
+  .ctrl-btn.active { background: rgba(99, 102, 241, 0.4); border-color: #818cf8; }
+</style>
+</head>
+<body>
+<div id="viewer"></div>
+<div id="info-panel">
+  <h3>📐 3D Mold Viewer</h3>
+  <div class="stat" id="stat-verts">頂点: -</div>
+  <div class="stat" id="stat-faces">面数: -</div>
+  <div class="stat" id="stat-size">サイズ: -</div>
+</div>
+<div id="controls">
+  <button class="ctrl-btn active" onclick="setView('perspective')">パース</button>
+  <button class="ctrl-btn" onclick="setView('front')">正面</button>
+  <button class="ctrl-btn" onclick="setView('side')">側面</button>
+  <button class="ctrl-btn" onclick="setView('top')">上面</button>
+  <button class="ctrl-btn" onclick="toggleWireframe()">ワイヤー</button>
+  <button class="ctrl-btn" onclick="resetCamera()">リセット</button>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// Scene setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0e1a);
+scene.fog = new THREE.FogExp2(0x0a0e1a, 0.002);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
+camera.position.set(200, 150, 200);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.getElementById('viewer').appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.rotateSpeed = 0.5;
+controls.panSpeed = 0.5;
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x404060, 0.8);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xfff0e0, 1.5);
+dirLight.position.set(100, 200, 150);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+scene.add(dirLight);
+
+const rimLight = new THREE.DirectionalLight(0x6366f1, 0.4);
+rimLight.position.set(-100, 50, -100);
+scene.add(rimLight);
+
+const fillLight = new THREE.HemisphereLight(0x6366f1, 0x1e1b4b, 0.3);
+scene.add(fillLight);
+
+// Grid
+const grid = new THREE.GridHelper(500, 50, 0x1e293b, 0x0f172a);
+grid.material.opacity = 0.5;
+grid.material.transparent = true;
+scene.add(grid);
+
+// Material
+const moldMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0x8b9dc3,
+  metalness: 0.6,
+  roughness: 0.3,
+  clearcoat: 0.4,
+  clearcoatRoughness: 0.2,
+  side: THREE.DoubleSide,
+});
+
+const wireframeMaterial = new THREE.MeshBasicMaterial({
+  color: 0x6366f1, wireframe: true, transparent: true, opacity: 0.3,
+});
+
+let currentMesh = null;
+let wireframeOverlay = null;
+let showWireframe = false;
+
+// Load mesh from URL parameter or message
+window.loadSTL = function(url) {
+  const loader = new STLLoader();
+  loader.load(url, (geometry) => {
+    if (currentMesh) scene.remove(currentMesh);
+    if (wireframeOverlay) scene.remove(wireframeOverlay);
+
+    geometry.computeVertexNormals();
+    geometry.center();
+
+    currentMesh = new THREE.Mesh(geometry, moldMaterial);
+    currentMesh.castShadow = true;
+    currentMesh.receiveShadow = true;
+    scene.add(currentMesh);
+
+    wireframeOverlay = new THREE.Mesh(geometry, wireframeMaterial);
+    wireframeOverlay.visible = showWireframe;
+    scene.add(wireframeOverlay);
+
+    fitCamera(geometry);
+    updateStats(geometry);
+  });
+};
+
+window.loadOBJ = function(url) {
+  const loader = new OBJLoader();
+  loader.load(url, (obj) => {
+    if (currentMesh) scene.remove(currentMesh);
+    obj.traverse(child => {
+      if (child.isMesh) {
+        child.material = moldMaterial;
+        child.castShadow = true;
+      }
+    });
+    currentMesh = obj;
+    scene.add(obj);
+  });
+};
+
+window.loadGLTF = function(url) {
+  const loader = new GLTFLoader();
+  loader.load(url, (gltf) => {
+    if (currentMesh) scene.remove(currentMesh);
+    gltf.scene.traverse(child => {
+      if (child.isMesh) child.castShadow = true;
+    });
+    currentMesh = gltf.scene;
+    scene.add(gltf.scene);
+  });
+};
+
+function fitCamera(geometry) {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const fov = camera.fov * (Math.PI / 180);
+  let dist = maxDim / (2 * Math.tan(fov / 2));
+  dist *= 1.8;
+  camera.position.set(dist * 0.7, dist * 0.5, dist * 0.7);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+function updateStats(geometry) {
+  const pos = geometry.attributes.position;
+  const verts = pos ? pos.count : 0;
+  const faces = geometry.index ? geometry.index.count / 3 : verts / 3;
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const size = box.getSize(new THREE.Vector3());
+  document.getElementById('stat-verts').textContent = `頂点: ${verts.toLocaleString()}`;
+  document.getElementById('stat-faces').textContent = `面数: ${Math.round(faces).toLocaleString()}`;
+  document.getElementById('stat-size').textContent = `サイズ: ${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)} mm`;
+}
+
+window.setView = function(view) {
+  const dist = 300;
+  switch(view) {
+    case 'front': camera.position.set(0, 0, dist); break;
+    case 'side':  camera.position.set(dist, 0, 0); break;
+    case 'top':   camera.position.set(0, dist, 0); break;
+    default:      camera.position.set(dist*0.7, dist*0.5, dist*0.7); break;
+  }
+  controls.target.set(0, 0, 0);
+  controls.update();
+  document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+};
+
+window.toggleWireframe = function() {
+  showWireframe = !showWireframe;
+  if (wireframeOverlay) wireframeOverlay.visible = showWireframe;
+  event.target.classList.toggle('active');
+};
+
+window.resetCamera = function() {
+  camera.position.set(200, 150, 200);
+  controls.target.set(0, 0, 0);
+  controls.update();
+};
+
+// Listen for postMessage (from NiceGUI parent)
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'load_stl') {
+    window.loadSTL(event.data.url);
+  }
+});
+
+// Animation loop
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Demo: load a default mesh if URL param
+const params = new URLSearchParams(window.location.search);
+if (params.has('stl')) window.loadSTL(params.get('stl'));
+</script>
+</body>
+</html>
