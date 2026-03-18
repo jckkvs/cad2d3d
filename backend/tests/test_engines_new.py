@@ -13,33 +13,8 @@ import pytest
 
 from app.engines.registry import EngineRegistry
 
-
-def _ensure_engines_registered():
-    """レジストリをリセットして全エンジンを強制登録."""
-    import importlib
-    EngineRegistry.reset()
-    # 全エンジンモジュールを再インポートしてデコレータ登録を発火
-    engine_modules = [
-        "app.engines.triposr.adapter",
-        "app.engines.trellis.adapter",
-        "app.engines.hunyuan3d2.adapter",
-        "app.engines.photogrammetry.adapter",
-        "app.engines.instantmesh.adapter",
-        "app.engines.crm.adapter",
-        "app.engines.zero123pp.adapter",
-        "app.engines.wonder3d.adapter",
-        "app.engines.secadnet.adapter",
-    ]
-    for mod_name in engine_modules:
-        mod = importlib.import_module(mod_name)
-        importlib.reload(mod)
-
-
-@pytest.fixture(autouse=True, scope="session")
-def _setup_engine_registry():
-    """テストセッション開始時にエンジンレジストリを初期化."""
-    _ensure_engines_registered()
-    yield
+# conftest.py の ensure_engines fixture を全テストに適用
+pytestmark = pytest.mark.usefixtures("ensure_engines")
 
 
 # ===== エンジン登録テスト =====

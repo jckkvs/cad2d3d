@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Model weights (large binary files)
+backend/data/weights/
+*.ckpt
+*.safetensors
+*.bin
+*.pth
+
+# Temporary files
+backend/data/uploads/
+backend/data/temp/
+backend/data/output/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.pytest_cache
+
+# Node modules
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Environment
+.env
+.env.local
